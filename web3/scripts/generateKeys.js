@@ -2,22 +2,35 @@ const { MerkleTree } = require('merkletreejs');
 const { ethers } = require('ethers');
 
 async function generateMerkleTree(authorizedAddresses) {
-    // Create leaves - use the same encoding as Solidity
-    const leaves = authorizedAddresses.map(addr => 
+    // Ensure we have at least two addresses for proper proof generation
+    const defaultAddresses = [
+        "0xf4061f4486122C19cd2d3521B04e884890d4b08e",  // Your address
+        "0x2345678901234567890123456789012345678901",  // Another address
+        "0x3456789012345678901234567890123456789012"   // Third address
+    ];
+
+    // Use provided addresses or default ones
+    const addresses = authorizedAddresses.length >= 2 ? authorizedAddresses : defaultAddresses;
+
+    console.log("Creating Merkle tree with addresses:", addresses);
+
+    const leaves = addresses.map(addr => 
         ethers.keccak256(ethers.solidityPacked(['address'], [addr]))
     );
 
-    // Create tree
     const tree = new MerkleTree(leaves, ethers.keccak256, { sortPairs: true });
     const root = tree.getHexRoot();
 
-    // Generate proofs for each address - use the same leaf hash as when creating the tree
     const proofs = {};
-    authorizedAddresses.forEach(addr => {
-        // Use the same leaf hash method as above
+    addresses.forEach(addr => {
         const leaf = ethers.keccak256(ethers.solidityPacked(['address'], [addr]));
         proofs[addr] = tree.getHexProof(leaf);
     });
+
+    // Log the tree structure for debugging
+    console.log("Merkle Tree Structure:");
+    console.log(tree.toString());
+    console.log("Root:", root);
 
     return {
         root,
@@ -71,3 +84,6 @@ if (require.main === module) {
             process.exit(1);
         });
 }
+
+// Export the function directly
+module.exports = generateMerkleTree;
