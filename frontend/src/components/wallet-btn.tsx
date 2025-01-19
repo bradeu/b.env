@@ -4,6 +4,7 @@ import { Box, Button, Text } from "@chakra-ui/react";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import Form from "./form";
 declare global {
   interface Window {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -33,9 +34,11 @@ export default function ConnectWalletButton() {
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
 
+        console.log(`${signer}`);
+
         setAddress(userAddress);
         localStorage.setItem("address", userAddress);
-        console.log(userAddress);
+        // console.log(userAddress);
       } catch {
         console.log("error");
       }
@@ -52,6 +55,7 @@ export default function ConnectWalletButton() {
       {isConnected ? (
         <Box>
           <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text>
+          <Form />
         </Box>
       ) : (
         <Button onClick={connectWallet}>Sign in with Metamask</Button>
