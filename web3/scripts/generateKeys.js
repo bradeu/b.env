@@ -3,6 +3,10 @@ const { ethers } = require('ethers');
 
 async function generateMerkleTree(authorizedAddresses) {
     // Convert addresses to leaves using ethers v6 syntax
+    if (!Array.isArray(authorizedAddresses)) {
+        authorizedAddresses = [authorizedAddresses];
+    }
+
     const leaves = authorizedAddresses.map(addr => 
         ethers.keccak256(ethers.solidityPacked(['address'], [addr]))
     );
@@ -98,4 +102,6 @@ if (require.main === module) {
         });
 }
 
-export default generateMerkleTree
+module.exports = {
+    generateMerkleTree
+};
