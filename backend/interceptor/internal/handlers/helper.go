@@ -94,23 +94,25 @@ func ConsumeMessages(messages <-chan amqp.Delivery) (string, error) {
 		for key, value := range msg.Headers {
 			logger.Info("    %s: %v", key, value)
 		}
-		logger.Info("  Body: %s", string(msg.Body))
+		logger.Info("  Raw Body: %s", string(msg.Body))
 
-		var rawMsg RawMessage
-		if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
-			logger.Error("Failed to unmarshal JSON: %v", err)
+		// First unmarshal the outer message
+		var outerMsg RawMessage
+		if err := json.Unmarshal(msg.Body, &outerMsg); err != nil {
+			logger.Error("Failed to unmarshal outer JSON: %v", err)
 			msg.Nack(false, true)
 			return "", err
 		}
 
-		decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
+		// Decode the base64 body
+		decodedBody, err := base64.StdEncoding.DecodeString(outerMsg.Body)
 		if err != nil {
 			logger.Error("Failed to decode base64: %v", err)
 			msg.Nack(false, true)
 			return "", err
 		}
 
-		logger.Info("Decoded message: %s", string(decodedBody))
+		logger.Info("Final decoded message: %s", string(decodedBody))
 		msg.Ack(false)
 
 		return string(decodedBody), nil

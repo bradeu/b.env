@@ -173,7 +173,7 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 				logger.Info("Response body: %s", string(body))
 				msg.Ack(false)
 
-				PublishMessageSend(string(body))
+				// PublishMessageSend(string(body))
 			} else {
 				PublishMessageReceive(string(decodedBody))
 			}
