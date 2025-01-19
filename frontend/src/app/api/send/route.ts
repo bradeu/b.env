@@ -3,6 +3,7 @@ import z from "zod";
 import amqp from "amqplib";
 
 const schema = z.object({
+  address: z.string().min(1),
   name: z.string().min(1),
   key: z.string().min(1),
 });
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // just some string validation with zod
-    const { name, key } = schema.parse(body);
+    const { address, name, key } = schema.parse(body);
 
     // encrypt data here
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     const sent = channel.publish(
       exchange,
       route,
-      Buffer.from(JSON.stringify({ name, key }))
+      Buffer.from(JSON.stringify({ address, name, key }))
     );
 
     if (sent)
