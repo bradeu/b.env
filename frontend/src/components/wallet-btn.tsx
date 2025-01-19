@@ -65,24 +65,26 @@ export default function ConnectWalletButton() {
   return (
     <Box height={"100vh"}>
       {isConnected ? (
-        <Box
-          ref={containerRef}
-          clipPath={"polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)"}
-          width={{ base: "100%", md: "10em" }}
-          my={5}
-          background={"#212121"}
-          p={{ base: 8, md: 10 }}
-          rounded={"2xl"}
-          border={"2px solid #333"}
-          color={"white"}
-        >
-          {/* <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text> */}
-          <Text fontSize={"md"}>
-            Your address is {`${address.toString().substring(0, 9)}`}... !
-          </Text>
-          <Heading mb={10}>Enter you API</Heading>
-          <Form address={address} />
-        </Box>
+        <>
+          <Box
+            ref={containerRef}
+            clipPath={"polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)"}
+            width={{ base: "100%", md: "10em" }}
+            my={5}
+            background={"#212121"}
+            p={{ base: 8, md: 10 }}
+            rounded={"2xl"}
+            border={"2px solid #333"}
+            color={"white"}
+          >
+            {/* <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text> */}
+            <Text fontSize={"md"}>
+              Your address is {`${address.toString().substring(0, 9)}`}... !
+            </Text>
+            <Heading mb={10}>Enter you API</Heading>
+            <Form address={address} />
+          </Box>
+        </>
       ) : (
         <Box>
           <Heading>Connect to your Wallet!</Heading>
