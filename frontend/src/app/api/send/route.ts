@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
     // encrypt data here
 
     // api call here
-    const exchange = "intercept_exchange";
-    const queue = "intercept";
-    const route = "mail_route";
+    const exchange = "solidity_exchange";
+    const queue = "solidity_queue";
+    const route = "frontend.route";
 
-    const uri = "localhost";
-    const user = "segal";
-    const pass = "xxxxxxxx";
+    const uri = "localhost:5672/";
+    const user = "guest";
+    const pass = "guest";
     const url = `amqp://${user}:${pass}@${uri}`;
 
     const connection = await amqp.connect(url);

@@ -3,10 +3,9 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"interceptor/internal/rabbitmq"
 	"interceptor/pkg/logger"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -82,54 +81,42 @@ func PublishMessage(messages string) error {
 	return nil
 }
 
-func ConsumeMessages(messages <-chan amqp.Delivery) error {
-	// Create a channel to keep the consumer running
-	forever := make(chan bool)
-
-	go func() {
-		for msg := range messages {
-			logger.Info("Received raw message: %s", string(msg.Body))
-
-			var rawMsg RawMessage
-			if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
-				logger.Error("Failed to unmarshal JSON: %v", err)
-				msg.Nack(false, true) // Negative acknowledge and requeue
-				continue
-			}
-
-			decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
-			if err != nil {
-				logger.Error("Failed to decode base64: %v", err)
-				msg.Nack(false, true)
-				continue
-			}
-
-			logger.Info("Decoded message: %s", string(decodedBody))
-
-			// Process decoded message
-			resp, err := http.Get("https://jsonplaceholder.typicode.com/posts/1")
-			if err != nil {
-				logger.Error("Failed to send GET request: %v", err)
-				msg.Nack(false, true)
-				continue
-			}
-			defer resp.Body.Close()
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				logger.Error("Failed to read response body: %v", err)
-				msg.Nack(false, true)
-				continue
-			}
-
-			logger.Info("Response body: %s", string(body))
-			msg.Ack(false)
-
-			PublishMessage(string(body))
+func ConsumeMessages(messages <-chan amqp.Delivery) (string, error) {
+	select {
+	case msg := <-messages:
+		// Log all message metadata
+		logger.Info("Received message with metadata:")
+		logger.Info("  Exchange: %s", msg.Exchange)
+		logger.Info("  Routing Key: %s", msg.RoutingKey)
+		logger.Info("  Content Type: %s", msg.ContentType)
+		logger.Info("  Content Encoding: %s", msg.ContentEncoding)
+		logger.Info("  Headers:")
+		for key, value := range msg.Headers {
+			logger.Info("    %s: %v", key, value)
 		}
-	}()
+		logger.Info("  Body: %s", string(msg.Body))
 
-	// Keep the consumer running
-	<-forever
-	return nil
+		var rawMsg RawMessage
+		if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
+			logger.Error("Failed to unmarshal JSON: %v", err)
+			msg.Nack(false, true)
+			return "", err
+		}
+
+		decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
+		if err != nil {
+			logger.Error("Failed to decode base64: %v", err)
+			msg.Nack(false, true)
+			return "", err
+		}
+
+		logger.Info("Decoded message: %s", string(decodedBody))
+		msg.Ack(false)
+
+		return string(decodedBody), nil
+
+	case <-time.After(5 * time.Second):
+		logger.Info("No message available after timeout")
+		return "", fmt.Errorf("no message available after timeout")
+	}
 }
