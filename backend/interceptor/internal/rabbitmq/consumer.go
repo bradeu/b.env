@@ -2,7 +2,6 @@ package rabbitmq
 
 import (
 	"log"
-	"os"
 
 	"github.com/streadway/amqp"
 )
@@ -33,21 +32,15 @@ func NewConsumer(channel *amqp.Channel, queueName string) (*Consumer, error) {
 }
 
 func (c *Consumer) ConsumeMessages() (<-chan amqp.Delivery, error) {
-	// Use the existing channel instead of creating new one
-	messages, err := c.channel.Consume(
+	return c.channel.Consume(
 		c.queueName, // queue name
 		"",          // consumer
-		true,        // auto-ack
+		false,       // auto-ack (changed to false for manual ack)
 		false,       // exclusive
 		false,       // no local
 		false,       // no wait
 		nil,         // arguments
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	return messages, nil
 }
 
 func (c *Consumer) Consume(handler func([]byte) error) error {
@@ -72,24 +65,7 @@ func (c *Consumer) Consume(handler func([]byte) error) error {
 	return nil
 }
 
-func ConsumeMessages() {
-	// Define RabbitMQ server URL.
-	amqpServerURL := os.Getenv("AMQP_SERVER_URL")
-
-	// Create a new RabbitMQ connection.
-	connectRabbitMQ, err := amqp.Dial(amqpServerURL)
-	if err != nil {
-		panic(err)
-	}
-	defer connectRabbitMQ.Close()
-
-	// Opening a channel
-	channelRabbitMQ, err := connectRabbitMQ.Channel()
-	if err != nil {
-		panic(err)
-	}
-	defer channelRabbitMQ.Close()
-
+func ConsumeMessages(channelRabbitMQ *amqp.Channel) {
 	// Subscribing to QueueService1 for getting messages.
 	messages, err := channelRabbitMQ.Consume(
 		"QueueService1", // queue name
@@ -101,22 +77,25 @@ func ConsumeMessages() {
 		nil,             // arguments
 	)
 	if err != nil {
-		log.Println(err)
+		log.Println("Failed to register consumer:", err)
+		return
 	}
 
-	// Build a welcome message.
+	// Log consumer status
 	log.Println("Successfully connected to RabbitMQ")
 	log.Println("Waiting for messages")
 
-	// Make a channel to receive messages into infinite loop.
-	forever := make(chan bool)
-
+	// Listen for messages in a goroutine
 	go func() {
 		for message := range messages {
-			// For example, show received message in a console.
+			// Process each message
 			log.Printf(" > Received message: %s\n", message.Body)
+
+			// Acknowledge if auto-ack is false (for manual acknowledgment)
+			// message.Ack(false)
 		}
 	}()
 
-	<-forever
+	// Keep the function running indefinitely
+	select {}
 }

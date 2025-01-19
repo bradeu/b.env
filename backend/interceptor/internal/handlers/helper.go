@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"interceptor/internal/rabbitmq"
 	"interceptor/pkg/logger"
 	"io"
@@ -50,67 +49,52 @@ func PublishMessage(messages string) error {
 	return nil
 }
 
-func ConsumeMessages() error {
-	url := "https://jsonplaceholder.typicode.com/posts/1"
+func ConsumeMessages(messages <-chan amqp.Delivery) error {
+	// Create a channel to keep the consumer running
+	forever := make(chan bool)
 
-	// Start consuming messages
-	messages, err := globalConsumer.ConsumeMessages()
-	if err != nil {
-		fmt.Printf("Failed to consume messages: %v\n", err)
-	}
+	go func() {
+		for msg := range messages {
+			logger.Info("Received raw message: %s", string(msg.Body))
 
-	// forever := make(chan bool)
+			var rawMsg RawMessage
+			if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
+				logger.Error("Failed to unmarshal JSON: %v", err)
+				msg.Nack(false, true) // Negative acknowledge and requeue
+				continue
+			}
 
-	// go func() {
-	select {
-	case msg := <-messages:
-		fmt.Printf("3. Received raw message: %s\n", string(msg.Body))
+			decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
+			if err != nil {
+				logger.Error("Failed to decode base64: %v", err)
+				msg.Nack(false, true)
+				continue
+			}
 
-		var rawMsg RawMessage
-		if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
-			fmt.Printf("Failed to unmarshal JSON: %v\n", err)
+			logger.Info("Decoded message: %s", string(decodedBody))
+
+			// Process decoded message
+			resp, err := http.Get("https://jsonplaceholder.typicode.com/posts/1")
+			if err != nil {
+				logger.Error("Failed to send GET request: %v", err)
+				msg.Nack(false, true)
+				continue
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error("Failed to read response body: %v", err)
+				msg.Nack(false, true)
+				continue
+			}
+
+			logger.Info("Response body: %s", string(body))
+			msg.Ack(false)
 		}
+	}()
 
-		decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
-		if err != nil {
-			fmt.Printf("4. Decode error: %v\n", err)
-			fmt.Printf("4. Failed message: %s\n", rawMsg.Body)
-		}
-
-		fmt.Printf("5. Decoded message: %s\n", string(decodedBody))
-
-		decoded := DecodedMessage{
-			Headers:         msg.Headers,
-			ContentType:     msg.ContentType,
-			ContentEncoding: msg.ContentEncoding,
-			Body:            string(decodedBody),
-		}
-
-		msg.Ack(false)
-
-		logger.Info("Successfully processed message: %v\n", decoded)
-
-		resp, err := http.Get(url)
-		if err != nil {
-			fmt.Printf("Failed to send GET request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Printf("Failed to read response body: %v", err)
-		}
-
-		fmt.Printf("6. Response body: %s\n", string(body))
-
-		// err = PublishMessage(string(body))
-		// if err != nil {
-		// 	fmt.Printf("Failed to publish message: %v", err)
-		// }
-
-		// <-forever
-	}
-	// }()
-
+	// Keep the consumer running
+	<-forever
 	return nil
 }
