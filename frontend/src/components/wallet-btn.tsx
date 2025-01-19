@@ -50,7 +50,9 @@ export default function ConnectWalletButton() {
   return (
     <Box>
       {isConnected ? (
-        <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text>
+        <Box>
+          <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text>
+        </Box>
       ) : (
         <Button onClick={connectWallet}>Sign in with Metamask</Button>
       )}
