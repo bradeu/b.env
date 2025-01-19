@@ -7,12 +7,8 @@ import (
 	"solidity/config"
 	"solidity/internal/handlers"
 	"solidity/internal/rabbitmq"
-	"solidity/internal/routes"
 	"solidity/pkg/logger"
 	"syscall"
-	"time"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
@@ -36,43 +32,49 @@ func main() {
 	// Get the channel
 	channel := rmq.GetChannel()
 
-	// Initialize producer and consumer
-	producer, err := rabbitmq.NewProducer(channel, config.AppConfig.RabbitMQ.QueueName)
+	logger.Info("Channel created successfully")
+	logger.Info("Exchange: %s", config.AppConfig.RabbitMQ.ExchangeName)
+	logger.Info("Queue: %s", config.AppConfig.RabbitMQ.QueueName)
+	logger.Info("Routing Key: %s", config.AppConfig.RabbitMQ.RoutingKey)
+
+	// Initialize producer and consumer with exchange and routing key
+	producer, err := rabbitmq.NewProducer(
+		channel,
+		config.AppConfig.RabbitMQ.QueueName,
+		config.AppConfig.RabbitMQ.ExchangeName,
+		config.AppConfig.RabbitMQ.RoutingKey, // routing key
+	)
 	if err != nil {
 		logger.Fatal("Failed to create producer: %v", err)
 	}
 
-	consumer, err := rabbitmq.NewConsumer(channel, config.AppConfig.RabbitMQ.QueueName)
+	consumer, err := rabbitmq.NewConsumer(
+		channel,
+		config.AppConfig.RabbitMQ.QueueName,
+		config.AppConfig.RabbitMQ.ExchangeName,
+		config.AppConfig.RabbitMQ.RoutingKey, // routing key
+	)
 	if err != nil {
 		logger.Fatal("Failed to create consumer: %v", err)
 	}
 
-	// Initialize handlers
-	handlers.InitializeHandlers(producer, consumer)
+	// Start consuming messages
+	messages, err := consumer.ConsumeMessages()
+	if err != nil {
+		logger.Fatal("Failed to start consuming messages: %v", err)
+	}
 
-	// Create a new Fiber app with custom config
-	app := fiber.New(fiber.Config{
-		ReadTimeout:  time.Duration(config.AppConfig.Server.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(config.AppConfig.Server.WriteTimeout) * time.Second,
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// logger.Error("HTTP Error: %v", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": err.Error(),
-			})
-		},
-	})
-
-	// Register routes
-	routes.RegisterRoutes(app)
-
-	// Start server in a goroutine
+	// Start the consumer in a goroutine
 	go func() {
-		serverAddr := fmt.Sprintf(":%s", config.AppConfig.Server.Port)
-		logger.Info("Server starting on port %s", config.AppConfig.Server.Port)
-		if err := app.Listen(serverAddr); err != nil {
-			logger.Fatal("Failed to start server: %v", err)
+		if err := handlers.ConsumeMessages(messages); err != nil {
+			logger.Error("Consumer error: %v", err)
 		}
 	}()
+
+	logger.Info("Consumer started and listening for messages...")
+
+	// Initialize handlers
+	handlers.InitializeHandlers(producer, consumer)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

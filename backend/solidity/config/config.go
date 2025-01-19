@@ -28,6 +28,7 @@ type RabbitMQConfig struct {
 	URL          string
 	QueueName    string
 	ExchangeName string
+	RoutingKey   string
 }
 
 // LoggerConfig holds all logger related configuration
@@ -56,6 +57,7 @@ func LoadEnv() {
 			URL:          GetEnv("AMQP_SERVER_URL", "amqp://guest:guest@localhost:5672/"),
 			QueueName:    GetEnv("AMQP_QUEUE_NAME", "default_queue"),
 			ExchangeName: GetEnv("AMQP_EXCHANGE_NAME", "default_exchange"),
+			RoutingKey:   GetEnv("AMQP_ROUTING_KEY", "interceptor.route"),
 		},
 		Logger: LoggerConfig{
 			FilePath: GetEnv("LOG_FILE_PATH", filepath.Join("logs", "app.log")),

@@ -6,6 +6,8 @@ import (
 	"api/internal/rabbitmq"
 	"api/internal/routes"
 	"api/pkg/logger"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -45,6 +47,58 @@ func main() {
 	consumer, err := rabbitmq.NewConsumer(channel, config.AppConfig.RabbitMQ.QueueName)
 	if err != nil {
 		logger.Fatal("Failed to create consumer: %v", err)
+	}
+
+	type DecodedMessage struct {
+		Headers         map[string]interface{} `json:"headers"`
+		ContentType     string                 `json:"contentType"`
+		ContentEncoding string                 `json:"contentEncoding"`
+		Body            string                 `json:"body"`
+	}
+
+	type RawMessage struct {
+		Headers         map[string]interface{} `json:"Headers"`
+		ContentType     string                 `json:"ContentType"`
+		ContentEncoding string                 `json:"ContentEncoding"`
+		Body            string                 `json:"Body"`
+	}
+
+	// Start consuming messages
+	messages, err := consumer.ConsumeMessages()
+	if err != nil {
+		fmt.Printf("Failed to consume messages: %v\n", err)
+	}
+
+	select {
+	case msg := <-messages:
+		fmt.Printf("3. Received raw message: %s\n", string(msg.Body))
+
+		var rawMsg RawMessage
+		if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
+			fmt.Printf("Failed to unmarshal JSON: %v\n", err)
+		}
+
+		decodedBody, err := base64.StdEncoding.DecodeString(rawMsg.Body)
+		if err != nil {
+			fmt.Printf("4. Decode error: %v\n", err)
+			fmt.Printf("4. Failed message: %s\n", rawMsg.Body)
+		}
+
+		fmt.Printf("5. Decoded message: %s\n", string(decodedBody))
+
+		decoded := DecodedMessage{
+			Headers:         msg.Headers,
+			ContentType:     msg.ContentType,
+			ContentEncoding: msg.ContentEncoding,
+			Body:            string(decodedBody),
+		}
+
+		msg.Ack(false)
+
+		logger.Info("Successfully processed message: %v\n", decoded)
+
+	case <-time.After(10 * time.Second):
+		fmt.Println("No message available")
 	}
 
 	// Initialize handlers
