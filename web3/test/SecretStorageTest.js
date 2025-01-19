@@ -1,61 +1,97 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { MerkleTree } = require('merkletreejs');
 
-describe("SecretStorage", function () {
+describe("ZKP Secret Storage System", function () {
+  let verifier;
   let secretStorage;
   let owner;
-  let addr1;
-  let addr2;
+  let authorizedUser;
+  let unauthorizedUser;
+  let merkleTree;
+  let merkleRoot;
 
-  beforeEach(async function () {
-    [owner, addr1, addr2] = await ethers.getSigners();
-    
+  before(async function () {
+    // Get signers
+    [owner, authorizedUser, unauthorizedUser] = await ethers.getSigners();
+
+    // Create Merkle tree with authorized addresses
+    const authorizedAddresses = [
+      authorizedUser.address
+    ];
+
+    // Generate leaves
+    const leaves = authorizedAddresses.map(addr => 
+      ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['address'], [addr]))
+    );
+
+    // Create Merkle tree
+    merkleTree = new MerkleTree(leaves, ethers.utils.keccak256, { sortPairs: true });
+    merkleRoot = merkleTree.getHexRoot();
+
+    // Deploy contracts
+    const Verifier = await ethers.getContractFactory("Verifier");
+    verifier = await Verifier.deploy(merkleRoot);
+    await verifier.deployed();
+
     const SecretStorage = await ethers.getContractFactory("SecretStorage");
-    secretStorage = await SecretStorage.deploy();
+    secretStorage = await SecretStorage.deploy(verifier.address);
+    await secretStorage.deployed();
   });
 
-  describe("Storing Secrets", function () {
-    it("Should store a secret successfully", async function () {
-      const secretId = ethers.keccak256(ethers.toUtf8Bytes("test-secret-id"));
-      const encryptedContent = "encrypted-content";
+  it("Should allow authorized user to store and retrieve API key", async function () {
+    const proof = merkleTree.getHexProof(
+      ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['address'], [authorizedUser.address]))
+    );
 
-      await secretStorage.storeSecret(secretId, encryptedContent);
-      
-      expect(await secretStorage.doesSecretExist(secretId)).to.equal(true);
-    });
+    // Store API key
+    const encryptedApiKey = "encrypted_test_key";
+    await secretStorage.connect(authorizedUser).storeEncryptedApiKey(
+      authorizedUser.address,
+      encryptedApiKey,
+      proof
+    );
 
-    it("Should not allow storing a secret with existing ID", async function () {
-      const secretId = ethers.keccak256(ethers.toUtf8Bytes("test-secret-id"));
-      const encryptedContent = "encrypted-content";
+    // Retrieve API key
+    const retrievedKey = await secretStorage.connect(authorizedUser).getEncryptedApiKeyForAddress(
+      authorizedUser.address,
+      proof
+    );
 
-      await secretStorage.storeSecret(secretId, encryptedContent);
-      
-      await expect(
-        secretStorage.storeSecret(secretId, "new-content")
-      ).to.be.revertedWith("Secret ID already exists");
-    });
+    expect(retrievedKey).to.equal(encryptedApiKey);
   });
 
-  describe("Retrieving Secrets", function () {
-    it("Should allow owner to retrieve their secret", async function () {
-      const secretId = ethers.keccak256(ethers.toUtf8Bytes("test-secret-id"));
-      const encryptedContent = "encrypted-content";
+  it("Should prevent unauthorized user from storing API key", async function () {
+    // Generate invalid proof for unauthorized user
+    const proof = merkleTree.getHexProof(
+      ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['address'], [unauthorizedUser.address]))
+    );
 
-      await secretStorage.connect(addr1).storeSecret(secretId, encryptedContent);
-      
-      const retrievedSecret = await secretStorage.connect(addr1).getSecret(secretId);
-      expect(retrievedSecret).to.equal(encryptedContent);
-    });
+    // Attempt to store API key
+    await expect(
+      secretStorage.connect(unauthorizedUser).storeEncryptedApiKey(
+        unauthorizedUser.address,
+        "encrypted_test_key",
+        proof
+      )
+    ).to.be.revertedWith("Not authorized to store API keys");
+  });
 
-    it("Should not allow non-owners to retrieve secret", async function () {
-      const secretId = ethers.keccak256(ethers.toUtf8Bytes("test-secret-id"));
-      const encryptedContent = "encrypted-content";
+  it("Should verify Merkle proof correctly", async function () {
+    const validProof = merkleTree.getHexProof(
+      ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['address'], [authorizedUser.address]))
+    );
 
-      await secretStorage.connect(addr1).storeSecret(secretId, encryptedContent);
-      
-      await expect(
-        secretStorage.connect(addr2).getSecret(secretId)
-      ).to.be.revertedWith("Only the owner can retrieve the secret");
-    });
+    const invalidProof = merkleTree.getHexProof(
+      ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['address'], [unauthorizedUser.address]))
+    );
+
+    // Check valid proof
+    const isValidProof = await verifier.verify(authorizedUser.address, validProof);
+    expect(isValidProof).to.be.true;
+
+    // Check invalid proof
+    const isInvalidProof = await verifier.verify(unauthorizedUser.address, invalidProof);
+    expect(isInvalidProof).to.be.false;
   });
 }); 
