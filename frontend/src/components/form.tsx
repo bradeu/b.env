@@ -43,18 +43,20 @@ export default function Form() {
     <form onSubmit={handleSubmit(onSubmit)}>
       <Stack gap="8" maxW="100%" css={{ "--field-label-width": "96px" }}>
         <Field
-          orientation="horizontal"
+          orientation="vertical"
           label="Name"
           invalid={Boolean(errors.name)}
+          errorText={errors.name?.message}
         >
-          <Input placeholder="John" flex="1" {...register("name")} />
+          <Input placeholder="John" flex="1" p={3} {...register("name")} />
         </Field>
         <Field
-          orientation="horizontal"
+          orientation="vertical"
           label="Key"
           invalid={Boolean(errors.key)}
+          errorText={errors.key?.message}
         >
-          <Input placeholder="Doe" flex="1" {...register("key")} />
+          <Input placeholder="Doe" flex="1" p={3} {...register("key")} />
         </Field>
         <Button type="submit" loading={isSubmitting}>
           Submit

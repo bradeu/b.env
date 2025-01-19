@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Box, Button, Heading, Text } from "@chakra-ui/react";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
@@ -53,12 +53,22 @@ export default function ConnectWalletButton() {
   return (
     <Box>
       {isConnected ? (
-        <Box>
-          <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text>
+        <Box
+          width={"10em"}
+          height={"5em"}
+          my={5}
+          background={"#212121"}
+          p={10}
+          rounded={"2xl"}
+        >
+          {/* <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text> */}
           <Form />
         </Box>
       ) : (
-        <Button onClick={connectWallet}>Sign in with Metamask</Button>
+        <Box>
+          <Heading>Connec to your Wallet!</Heading>
+          <Button onClick={connectWallet}>Sign in with Metamask</Button>
+        </Box>
       )}
     </Box>
   );
