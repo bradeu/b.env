@@ -1,10 +1,13 @@
 "use client";
 
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Box, Button, Heading, Text } from "@chakra-ui/react";
+import { useGSAP } from "@gsap/react";
 import { ethers } from "ethers";
-import { useEffect, useState } from "react";
+import gsap from "gsap";
+import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import Form from "./form";
+
 declare global {
   interface Window {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -12,12 +15,25 @@ declare global {
   }
 }
 
+gsap.registerPlugin(useGSAP);
+
 export default function ConnectWalletButton() {
   const [address, setAddress] = useState<string>("");
-  const [isClient, setIsClient] = useState<boolean>(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const timeline = gsap.timeline();
+  useGSAP(() => {
+    if (timeline) {
+      timeline.to(containerRef.current, {
+        clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
+        duration: "1",
+        ease: "power4.inOut",
+      });
+    }
+  });
 
   useEffect(() => {
-    setIsClient(true);
     const storedAddress = localStorage.getItem("address");
     if (storedAddress) {
       setAddress(storedAddress);
@@ -46,19 +62,34 @@ export default function ConnectWalletButton() {
   };
   const { isConnected } = useAccount();
 
-  if (!isClient) {
-    return <Text fontSize={"md"}>Loading...</Text>;
-  }
-
   return (
-    <Box>
+    <Box height={"100vh"}>
       {isConnected ? (
-        <Box>
-          <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text>
-          <Form />
-        </Box>
+        <>
+          <Box
+            ref={containerRef}
+            clipPath={"polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)"}
+            width={{ base: "100%", md: "10em" }}
+            my={5}
+            background={"#212121"}
+            p={{ base: 8, md: 10 }}
+            rounded={"2xl"}
+            border={"2px solid #333"}
+            color={"white"}
+          >
+            {/* <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text> */}
+            <Text fontSize={"md"}>
+              Your address is {`${address.toString().substring(0, 9)}`}... !
+            </Text>
+            <Heading mb={10}>Enter you API</Heading>
+            <Form address={address} />
+          </Box>
+        </>
       ) : (
-        <Button onClick={connectWallet}>Sign in with Metamask</Button>
+        <Box>
+          <Heading>Connect to your Wallet!</Heading>
+          <Button onClick={connectWallet}>Sign in with Metamask</Button>
+        </Box>
       )}
     </Box>
   );
