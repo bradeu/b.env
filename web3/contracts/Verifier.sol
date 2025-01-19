@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -15,9 +15,14 @@ contract Verifier is Ownable {
         address user,
         bytes32[] calldata proof
     ) public view returns (bool) {
-        // Reject empty proofs
-        if (proof.length == 0) return false;
-        
+        // If there is only one leaf in the entire tree (i.e. proof is empty),
+        // the leaf itself should match the root.
+        if (proof.length == 0) {
+            bytes32 leaf = keccak256(abi.encodePacked(user));
+            return leaf == merkleRoot;
+        }
+
+        // Normal multi-leaf case
         bytes32 computedHash = keccak256(abi.encodePacked(user));
 
         for (uint256 i = 0; i < proof.length; i++) {
@@ -25,13 +30,10 @@ contract Verifier is Ownable {
             bytes32 tempHash;
 
             assembly {
-                // Load free memory pointer
                 let memPtr := mload(0x40)
 
-                // Calculate hash based on ordering
                 switch lt(computedHash, proofElement)
                 case 1 {
-                    // computedHash < proofElement
                     mstore(memPtr, computedHash)
                     mstore(add(memPtr, 32), proofElement)
                 }
@@ -39,8 +41,7 @@ contract Verifier is Ownable {
                     mstore(memPtr, proofElement)
                     mstore(add(memPtr, 32), computedHash)
                 }
-                
-                // Calculate hash
+
                 tempHash := keccak256(memPtr, 64)
             }
             computedHash = tempHash;
