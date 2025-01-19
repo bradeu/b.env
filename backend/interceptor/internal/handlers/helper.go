@@ -7,6 +7,7 @@ import (
 	"interceptor/pkg/logger"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -37,15 +38,47 @@ func InitializeHandlers(producer *rabbitmq.Producer, consumer *rabbitmq.Consumer
 }
 
 func PublishMessage(messages string) error {
-	message := amqp.Publishing{
-		ContentType: "application/json",
-		Body:        []byte(messages),
+	// Create the message structure
+	rawMessage := RawMessage{
+		Headers: map[string]interface{}{
+			"source":      "interceptor",
+			"timestamp":   time.Now().Format(time.RFC3339),
+			"messageType": "json",
+		},
+		ContentType:     "application/json",
+		ContentEncoding: "utf-8",
+		Body:            messages,
 	}
 
-	if err := globalProducer.PublishMessage(message); err != nil {
+	// Marshal the raw message
+	messageBytes, err := json.Marshal(rawMessage)
+	if err != nil {
+		logger.Error("Failed to marshal message: %v", err)
 		return err
 	}
 
+	// Create the AMQP publishing
+	message := amqp.Publishing{
+		ContentType:     "application/json",
+		ContentEncoding: "utf-8",
+		DeliveryMode:    amqp.Persistent, // Message persistence
+		Timestamp:       time.Now(),
+		Headers: amqp.Table{
+			"source":      "interceptor",
+			"messageType": "json",
+		},
+		Body: messageBytes,
+	}
+
+	logger.Info("Attempting to publish message with content: %s", messages)
+
+	// Publish using the global producer
+	if err := globalProducer.PublishMessage(message); err != nil {
+		logger.Error("Failed to publish message: %v", err)
+		return err
+	}
+
+	logger.Info("Message published successfully")
 	return nil
 }
 
@@ -91,6 +124,8 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 
 			logger.Info("Response body: %s", string(body))
 			msg.Ack(false)
+
+			PublishMessage(string(body))
 		}
 	}()
 
