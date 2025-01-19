@@ -54,14 +54,16 @@ export default function ConnectWalletButton() {
     <Box>
       {isConnected ? (
         <Box
-          width={"10em"}
-          height={"5em"}
+          width={{ base: "100%", md: "10em" }}
+          height={"fit-content"}
           my={5}
           background={"#212121"}
-          p={10}
+          p={{ base: 8, md: 10 }}
           rounded={"2xl"}
+          border={"2px solid #333"}
         >
           {/* <Text fontSize={"md"}>Success, your address is {`${address}!`}</Text> */}
+          <Heading mb={10}>Enter you API</Heading>
           <Form />
         </Box>
       ) : (

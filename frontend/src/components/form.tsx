@@ -41,7 +41,7 @@ export default function Form() {
   };
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <Stack gap="8" maxW="100%" css={{ "--field-label-width": "96px" }}>
+      <Stack gap="8" width="100%" css={{ "--field-label-width": "96px" }}>
         <Field
           orientation="vertical"
           label="Name"
