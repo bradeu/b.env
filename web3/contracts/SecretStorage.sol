@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.20;
 
-import "./Verifier.sol";
+import "./Verifier.sol"; // This is correct! Imports Verifier.sol from same directory
 
 contract SecretStorage {
     // struct
