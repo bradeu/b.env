@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -155,7 +156,7 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 
 			if msg.RoutingKey == "frontend.route" {
 				// Process decoded message
-				resp, err := http.Get("https://jsonplaceholder.typicode.com/posts/1")
+				resp, err := http.Post("http://localhost:3003", "application/json", bytes.NewBuffer(decodedBody))
 				if err != nil {
 					logger.Error("Failed to send GET request: %v", err)
 					msg.Nack(false, true)
@@ -175,7 +176,25 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 
 				// PublishMessageSend(string(body))
 			} else {
-				PublishMessageReceive(string(decodedBody))
+				resp, err := http.Post("http://localhost:3003", "application/json", bytes.NewBuffer(decodedBody))
+				if err != nil {
+					logger.Error("Failed to send POST request: %v", err)
+					msg.Nack(false, true)
+					continue
+				}
+				defer resp.Body.Close()
+
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logger.Error("Failed to read response body: %v", err)
+					msg.Nack(false, true)
+					continue
+				}
+
+				logger.Info("Response body: %s", string(body))
+				msg.Ack(false)
+
+				PublishMessageReceive(string(body))
 			}
 		}
 	}()
