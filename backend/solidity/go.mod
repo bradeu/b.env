@@ -1,4 +1,4 @@
-module backend
+module solidity
 
 go 1.23.5
 

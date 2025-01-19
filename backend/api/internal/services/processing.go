@@ -1,7 +1,7 @@
 package services
 
 import (
-	"backend/pkg/logger"
+	"api/pkg/logger"
 	"encoding/json"
 	"fmt"
 	"time"

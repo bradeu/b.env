@@ -1,8 +1,8 @@
 package rabbitmq
 
 import (
-	"backend/config"
-	"backend/pkg/logger"
+	"api/config"
+	"api/pkg/logger"
 	"fmt"
 
 	"github.com/streadway/amqp"

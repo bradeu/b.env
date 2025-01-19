@@ -1,14 +1,14 @@
 package main
 
 import (
-	"backend/config"
-	"backend/internal/handlers"
-	"backend/internal/rabbitmq"
-	"backend/internal/routes"
-	"backend/pkg/logger"
 	"fmt"
 	"os"
 	"os/signal"
+	"solidity/config"
+	"solidity/internal/handlers"
+	"solidity/internal/rabbitmq"
+	"solidity/internal/routes"
+	"solidity/pkg/logger"
 	"syscall"
 	"time"
 

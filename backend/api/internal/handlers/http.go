@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"backend/internal/rabbitmq"
+	"api/internal/rabbitmq"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -91,6 +91,6 @@ func PublishMessageThroughBroker(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
-		"message": "Message sent to broker",
+		"message": "message sent to broker",
 	})
 }
