@@ -2,7 +2,7 @@ const { MerkleTree } = require('merkletreejs');
 const { ethers } = require('ethers');
 
 async function generateMerkleTree(authorizedAddresses) {
-    // Create leaves - use the same encoding as Solidity
+    // Convert addresses to leaves using ethers v6 syntax
     const leaves = authorizedAddresses.map(addr => 
         ethers.keccak256(ethers.solidityPacked(['address'], [addr]))
     );
@@ -11,10 +11,9 @@ async function generateMerkleTree(authorizedAddresses) {
     const tree = new MerkleTree(leaves, ethers.keccak256, { sortPairs: true });
     const root = tree.getHexRoot();
 
-    // Generate proofs for each address - use the same leaf hash as when creating the tree
+    // Generate proofs for each address
     const proofs = {};
     authorizedAddresses.forEach(addr => {
-        // Use the same leaf hash method as above
         const leaf = ethers.keccak256(ethers.solidityPacked(['address'], [addr]));
         proofs[addr] = tree.getHexProof(leaf);
     });
@@ -23,6 +22,34 @@ async function generateMerkleTree(authorizedAddresses) {
         root,
         proofs
     };
+}
+
+async function verifyStep(address, proofArray) {
+    // Create the leaf
+    const leaf = ethers.keccak256(
+        ethers.solidityPacked(['address'], [address])
+    );
+    console.log('Leaf:', leaf);
+
+    if (!proofArray || proofArray.length === 0) {
+        console.log('No proof elements (single-node tree)');
+        console.log('Root should equal leaf:', leaf);
+        return;
+    }
+
+    // Get the first proof element
+    const proof = proofArray[0];
+    console.log('Proof Element:', proof);
+    
+    // Sort the hashes
+    const pair = [leaf, proof].sort();
+    
+    // Hash the concatenated values
+    const calculatedRoot = ethers.keccak256(
+        ethers.concat(pair)
+    );
+    
+    console.log('Calculated Root:', calculatedRoot);
 }
 
 async function testMatchingLogic() {
@@ -57,7 +84,6 @@ async function testMatchingLogic() {
     console.log("6. Matches root?", computedHash === root);
 }
 
-// Example usage
 async function main() {
     await testMatchingLogic();
 }
@@ -71,3 +97,5 @@ if (require.main === module) {
             process.exit(1);
         });
 }
+
+export default generateMerkleTree
