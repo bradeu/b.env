@@ -7,7 +7,6 @@ contract SecretStorage {
         string encryptedApiKey;
     }
 
-
     mapping(address => ApiLots) public users;
 
     event EncryptedApiKeyStored(address indexed user, string encryptedApiKey);
@@ -25,10 +24,6 @@ contract SecretStorage {
 
         emit EncryptedApiKeyStored(msg.sender, _encryptedApiKey);
     }
-
-    // TODO: return api key
-
-    // TODO: validate rights
 
     function getEncryptedApiKey() public view returns (string memory) {
         return users[msg.sender].encryptedApiKey;
