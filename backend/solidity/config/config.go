@@ -11,9 +11,11 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	RabbitMQ RabbitMQConfig
-	Logger   LoggerConfig
+	Server                  ServerConfig
+	RabbitMQConsumer        RabbitMQConsumer
+	RabbitMQProducerReceive RabbitMQProducerReceive
+	RabbitMQProducerSend    RabbitMQProducerSend
+	Logger                  LoggerConfig
 }
 
 // ServerConfig holds all HTTP server related configuration
@@ -24,7 +26,21 @@ type ServerConfig struct {
 }
 
 // RabbitMQConfig holds all RabbitMQ related configuration
-type RabbitMQConfig struct {
+type RabbitMQConsumer struct {
+	URL          string
+	QueueName    string
+	ExchangeName string
+	RoutingKey   string
+}
+
+type RabbitMQProducerReceive struct {
+	URL          string
+	QueueName    string
+	ExchangeName string
+	RoutingKey   string
+}
+
+type RabbitMQProducerSend struct {
 	URL          string
 	QueueName    string
 	ExchangeName string
@@ -53,11 +69,23 @@ func LoadEnv() {
 			ReadTimeout:  GetEnvAsInt("SERVER_READ_TIMEOUT", 10),
 			WriteTimeout: GetEnvAsInt("SERVER_WRITE_TIMEOUT", 10),
 		},
-		RabbitMQ: RabbitMQConfig{
+		RabbitMQConsumer: RabbitMQConsumer{
 			URL:          GetEnv("AMQP_SERVER_URL", "amqp://guest:guest@localhost:5672/"),
-			QueueName:    GetEnv("AMQP_QUEUE_NAME", "default_queue"),
-			ExchangeName: GetEnv("AMQP_EXCHANGE_NAME", "default_exchange"),
-			RoutingKey:   GetEnv("AMQP_ROUTING_KEY", "interceptor.route"),
+			QueueName:    GetEnv("AMQP_CONSUMER_QUEUE_NAME", "default_queue"),
+			ExchangeName: GetEnv("AMQP_CONSUMER_EXCHANGE_NAME", "default_exchange"),
+			RoutingKey:   GetEnv("AMQP_CONSUMER_ROUTING_KEY", "interceptor.route"),
+		},
+		RabbitMQProducerReceive: RabbitMQProducerReceive{
+			URL:          GetEnv("AMQP_SERVER_URL", "amqp://guest:guest@localhost:5672/"),
+			QueueName:    GetEnv("AMQP_PRODUCER_QUEUE_NAME_1", "default_queue"),
+			ExchangeName: GetEnv("AMQP_PRODUCER_EXCHANGE_NAME_1", "default_exchange"),
+			RoutingKey:   GetEnv("AMQP_PRODUCER_ROUTING_KEY_1", "interceptor.route"),
+		},
+		RabbitMQProducerSend: RabbitMQProducerSend{
+			URL:          GetEnv("AMQP_SERVER_URL", "amqp://guest:guest@localhost:5672/"),
+			QueueName:    GetEnv("AMQP_PRODUCER_QUEUE_NAME_2", "default_queue"),
+			ExchangeName: GetEnv("AMQP_PRODUCER_EXCHANGE_NAME_2", "default_exchange"),
+			RoutingKey:   GetEnv("AMQP_PRODUCER_ROUTING_KEY_2", "interceptor.route"),
 		},
 		Logger: LoggerConfig{
 			FilePath: GetEnv("LOG_FILE_PATH", filepath.Join("logs", "app.log")),

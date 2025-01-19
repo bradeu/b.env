@@ -47,12 +47,36 @@ func ConnectRabbitMQ(url string) (*RabbitMQ, error) {
 func (r *RabbitMQ) SetupQueuesAndExchanges() error {
 	// Declare the queue
 	_, err := r.Channel.QueueDeclare(
-		config.AppConfig.RabbitMQ.QueueName, // name
-		true,                                // durable
-		false,                               // delete when unused
-		false,                               // exclusive
-		false,                               // no-wait
-		nil,                                 // arguments
+		config.AppConfig.RabbitMQConsumer.QueueName, // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare queue: %v", err)
+	}
+
+	_, err = r.Channel.QueueDeclare(
+		config.AppConfig.RabbitMQProducerReceive.QueueName, // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare queue: %v", err)
+	}
+
+	_, err = r.Channel.QueueDeclare(
+		config.AppConfig.RabbitMQProducerSend.QueueName, // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		return fmt.Errorf("failed to declare queue: %v", err)

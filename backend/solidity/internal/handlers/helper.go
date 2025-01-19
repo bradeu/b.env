@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	globalProducer *rabbitmq.Producer
-	globalConsumer *rabbitmq.Consumer
+	globalProducerReceive *rabbitmq.Producer
+	globalProducerSend    *rabbitmq.Producer
+	globalConsumer        *rabbitmq.Consumer
 )
 
 type DecodedMessage struct {
@@ -32,12 +33,13 @@ type RawMessage struct {
 }
 
 // InitializeHandlers initializes the global producer and consumer
-func InitializeHandlers(producer *rabbitmq.Producer, consumer *rabbitmq.Consumer) {
-	globalProducer = producer
+func InitializeHandlers(producerReceive *rabbitmq.Producer, producerSend *rabbitmq.Producer, consumer *rabbitmq.Consumer) {
+	globalProducerReceive = producerReceive
+	globalProducerSend = producerSend
 	globalConsumer = consumer
 }
 
-func PublishMessage(messages string) error {
+func PublishMessageReceive(messages string) error {
 	// Create the message structure
 	rawMessage := RawMessage{
 		Headers: map[string]interface{}{
@@ -73,7 +75,52 @@ func PublishMessage(messages string) error {
 	logger.Info("Attempting to publish message with content: %s", messages)
 
 	// Publish using the global producer
-	if err := globalProducer.PublishMessage(message); err != nil {
+	if err := globalProducerSend.PublishMessage(message); err != nil {
+		logger.Error("Failed to publish message: %v", err)
+		return err
+	}
+
+	logger.Info("Message published successfully")
+	return nil
+}
+
+func PublishMessageSend(messages string) error {
+	// Create the message structure
+	rawMessage := RawMessage{
+		Headers: map[string]interface{}{
+			"source":      "interceptor",
+			"timestamp":   time.Now().Format(time.RFC3339),
+			"messageType": "json",
+		},
+		ContentType:     "application/json",
+		ContentEncoding: "utf-8",
+		Body:            messages,
+	}
+
+	// Marshal the raw message
+	messageBytes, err := json.Marshal(rawMessage)
+	if err != nil {
+		logger.Error("Failed to marshal message: %v", err)
+		return err
+	}
+
+	// Create the AMQP publishing
+	message := amqp.Publishing{
+		ContentType:     "application/json",
+		ContentEncoding: "utf-8",
+		DeliveryMode:    amqp.Persistent, // Message persistence
+		Timestamp:       time.Now(),
+		Headers: amqp.Table{
+			"source":      "interceptor",
+			"messageType": "json",
+		},
+		Body: messageBytes,
+	}
+
+	logger.Info("Attempting to publish message with content: %s", messages)
+
+	// Publish using the global producer
+	if err := globalProducerSend.PublishMessage(message); err != nil {
 		logger.Error("Failed to publish message: %v", err)
 		return err
 	}
@@ -88,7 +135,7 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 
 	go func() {
 		for msg := range messages {
-			logger.Info("Received raw message: %s", string(msg.Body))
+			logger.Info("  Body: %s", string(msg.Body))
 
 			var rawMsg RawMessage
 			if err := json.Unmarshal(msg.Body, &rawMsg); err != nil {
@@ -106,26 +153,30 @@ func ConsumeMessages(messages <-chan amqp.Delivery) error {
 
 			logger.Info("Decoded message: %s", string(decodedBody))
 
-			// Process decoded message
-			resp, err := http.Get("https://jsonplaceholder.typicode.com/posts/1")
-			if err != nil {
-				logger.Error("Failed to send GET request: %v", err)
-				msg.Nack(false, true)
-				continue
+			if msg.RoutingKey == "frontend.route" {
+				// Process decoded message
+				resp, err := http.Get("https://jsonplaceholder.typicode.com/posts/1")
+				if err != nil {
+					logger.Error("Failed to send GET request: %v", err)
+					msg.Nack(false, true)
+					continue
+				}
+				defer resp.Body.Close()
+
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logger.Error("Failed to read response body: %v", err)
+					msg.Nack(false, true)
+					continue
+				}
+
+				logger.Info("Response body: %s", string(body))
+				msg.Ack(false)
+
+				PublishMessageSend(string(body))
+			} else {
+				PublishMessageReceive(string(decodedBody))
 			}
-			defer resp.Body.Close()
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				logger.Error("Failed to read response body: %v", err)
-				msg.Nack(false, true)
-				continue
-			}
-
-			logger.Info("Response body: %s", string(body))
-			msg.Ack(false)
-
-			PublishMessage(string(body))
 		}
 	}()
 
