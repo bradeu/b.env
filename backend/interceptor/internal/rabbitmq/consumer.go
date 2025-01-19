@@ -7,13 +7,29 @@ import (
 )
 
 type Consumer struct {
-	channel   *amqp.Channel
-	queueName string
+	channel      *amqp.Channel
+	queueName    string
+	exchangeName string
+	routingKey   string
 }
 
-func NewConsumer(channel *amqp.Channel, queueName string) (*Consumer, error) {
+func NewConsumer(channel *amqp.Channel, queueName, exchangeName, routingKey string) (*Consumer, error) {
+	// Declare the exchange
+	err := channel.ExchangeDeclare(
+		exchangeName, // name
+		"direct",     // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	// Declare the queue
-	_, err := channel.QueueDeclare(
+	_, err = channel.QueueDeclare(
 		queueName, // name
 		true,      // durable
 		false,     // delete when unused
@@ -25,9 +41,23 @@ func NewConsumer(channel *amqp.Channel, queueName string) (*Consumer, error) {
 		return nil, err
 	}
 
+	// Bind the queue to the exchange with routing key
+	err = channel.QueueBind(
+		queueName,    // queue name
+		routingKey,   // routing key
+		exchangeName, // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Consumer{
-		channel:   channel,
-		queueName: queueName,
+		channel:      channel,
+		queueName:    queueName,
+		exchangeName: exchangeName,
+		routingKey:   routingKey,
 	}, nil
 }
 
@@ -35,7 +65,7 @@ func (c *Consumer) ConsumeMessages() (<-chan amqp.Delivery, error) {
 	return c.channel.Consume(
 		c.queueName, // queue name
 		"",          // consumer
-		false,       // auto-ack (changed to false for manual ack)
+		false,       // auto-ack
 		false,       // exclusive
 		false,       // no local
 		false,       // no wait

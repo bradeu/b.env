@@ -32,13 +32,28 @@ func main() {
 	// Get the channel
 	channel := rmq.GetChannel()
 
-	// Initialize producer and consumer
-	producer, err := rabbitmq.NewProducer(channel, config.AppConfig.RabbitMQ.QueueName)
+	logger.Info("Channel created successfully")
+	logger.Info("Exchange: %s", config.AppConfig.RabbitMQ.ExchangeName)
+	logger.Info("Queue: %s", config.AppConfig.RabbitMQ.QueueName)
+	logger.Info("Routing Key: %s", config.AppConfig.RabbitMQ.RoutingKey)
+
+	// Initialize producer and consumer with exchange and routing key
+	producer, err := rabbitmq.NewProducer(
+		channel,
+		config.AppConfig.RabbitMQ.QueueName,
+		config.AppConfig.RabbitMQ.ExchangeName,
+		config.AppConfig.RabbitMQ.RoutingKey, // routing key
+	)
 	if err != nil {
 		logger.Fatal("Failed to create producer: %v", err)
 	}
 
-	consumer, err := rabbitmq.NewConsumer(channel, config.AppConfig.RabbitMQ.QueueName)
+	consumer, err := rabbitmq.NewConsumer(
+		channel,
+		config.AppConfig.RabbitMQ.QueueName,
+		config.AppConfig.RabbitMQ.ExchangeName,
+		config.AppConfig.RabbitMQ.RoutingKey, // routing key
+	)
 	if err != nil {
 		logger.Fatal("Failed to create consumer: %v", err)
 	}
