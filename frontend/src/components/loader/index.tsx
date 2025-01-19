@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { words } from "./data";
 
-import "./loader.css"; // Import plain CSS
+import "./loader.css";
 import { introAnimation, collapseWords } from "./animation";
 
 const Loader = ({ timeline }: { timeline?: GSAPTimeline }) => {
