@@ -50,6 +50,15 @@ func main() {
 	// Initialize handlers
 	handlers.InitializeHandlers(producer, consumer)
 
+	// Start consuming messages
+	go func() {
+		if err := handlers.ConsumeMessages(); err != nil {
+			logger.Error("Consumer error: %v", err)
+		}
+	}()
+
+	logger.Info("Consumer started and listening for messages...")
+
 	// Create a new Fiber app with custom config
 	app := fiber.New(fiber.Config{
 		ReadTimeout:  time.Duration(config.AppConfig.Server.ReadTimeout) * time.Second,

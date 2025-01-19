@@ -17,6 +17,9 @@ func RegisterRoutes(app *fiber.App) {
 	// API endpoints
 	api.Post("/publish", handlers.PublishHandler)
 
-	// RabbitMQ endpoints
-	api.Post("/publishbroker", handlers.PublishMessageThroughBroker)
+	// // RabbitMQ endpoints
+	// api.Post("/publishbroker", handlers.PublishMessageThroughBroker)
+
+	// endpoints
+	// api.Post("/send", handlers.SendMessage)
 }
